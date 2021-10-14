@@ -5,7 +5,7 @@ AVRO-GEN
 [![codecov](https://codecov.io/gh/rbystrit/avro_gen/branch/master/graph/badge.svg)](https://codecov.io/gh/rbystrit/avro_gen)
 ##### Avro record class and specific record reader generator.
 
-Current Avro implementation in Python is completely typelss and operates on dicts. 
+Current Avro implementation in Python is completely typeless and operates on dicts. 
 While in many cases this is convenient and pythonic, not being able to discover the schema
 by looking at the code, not enforcing schema during record constructions, and not having any 
 context help from the IDE could hamper developer performance and introduce bugs. 
