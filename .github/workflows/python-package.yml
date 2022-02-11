@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
-        avro-version: ["1.8.2", "1.10.2", "1.11.0"]
+        avro-version: ["1.10.2", "1.11.0"]
 
     steps:
     - uses: actions/checkout@v2
