@@ -1,3 +1,5 @@
+import sys
+
 from avrogen.core_writer import find_type_of_default
 import collections
 import six
@@ -10,6 +12,13 @@ from avro import io
 io_validate = io.validate
 
 _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
+ARRAY_TYPE_ERROR = "arrayTypeError"
+LOGICAL_TYPE_ERROR = "logicalTypeError"
+IO_VALIDATION_ERROR = "ioValidationError"
+MAP_TYPE_ERROR = "mapTypeError"
+MISSING_FIELDS_ERROR = "missingFieldsError"
+RECORD_TYPE_ERROR = "recordTypeError"
+UNION_TYPE_ERROR = "unionTypeError"
 
 
 class AvroJsonConverter(object):
@@ -28,20 +37,29 @@ class AvroJsonConverter(object):
         ret.fastavro = enable
         return ret
 
-    def validate(self, expected_schema, datum, skip_logical_types=False):
+    def validate(self, expected_schema, datum, skip_logical_types=False) -> dict:
+        errors = {}
+        schema_type = expected_schema.type
         if self.use_logical_types and expected_schema.props.get('logicalType') and not skip_logical_types \
                 and expected_schema.props.get('logicalType') in self.logical_types:
-            return self.logical_types[expected_schema.props.get('logicalType')].can_convert(expected_schema) \
-                   and self.logical_types[expected_schema.props.get('logicalType')].validate(expected_schema, datum)
-        schema_type = expected_schema.type
-        if schema_type == 'array':
-            return (isinstance(datum, list) and
-                    False not in [self.validate(expected_schema.items, d, skip_logical_types) for d in datum])
+            if not self.logical_types[expected_schema.props.get('logicalType')].can_convert(expected_schema):
+                validation = self.logical_types[expected_schema.props.get('logicalType')].validate(
+                    expected_schema, datum)
+                if validation:
+                    errors[LOGICAL_TYPE_ERROR] = validation
+        elif schema_type == 'array':
+            if not (isinstance(datum, list)):
+                validation_list = list(filter(None, [self.validate(expected_schema.items, d, skip_logical_types)
+                                                     for d in datum]))
+                if not self.is_list_empty(validation_list):
+                    errors[ARRAY_TYPE_ERROR] = validation_list
         elif schema_type == 'map':
-            return (isinstance(datum, dict) and
-                    False not in [isinstance(k, six.string_types) for k in datum.keys()] and
-                    False not in
-                    [self.validate(expected_schema.values, v, skip_logical_types) for v in datum.values()])
+            if not (isinstance(datum, dict) and
+                    False not in [isinstance(k, six.string_types) for k in datum.keys()]):
+                validation_list = list(filter(None, [self.validate(expected_schema.values, v, skip_logical_types)
+                                                     for v in datum.values()]))
+                if not self.is_list_empty(validation_list):
+                    errors[MAP_TYPE_ERROR] = validation_list
         elif schema_type in ['union', 'error_union']:
             if isinstance(datum, DictWrapper):
                 # Match the type based on the declared schema.
@@ -57,9 +75,10 @@ class AvroJsonConverter(object):
                 if len(datum) == 1:
                     items = list(six.iteritems(datum))
                     if not items:
-                        return None
-                    value_type = items[0][0]
-                    value = items[0][1]
+                        errors[MISSING_FIELDS_ERROR] = {"expected": expected_schema.type, "actual": datum}
+                    else:
+                        value_type = items[0][0]
+                        value = items[0][1]
             elif self.fastavro and (isinstance(datum, list) or isinstance(datum, tuple)):
                 if len(datum) == 2:
                     value_type = datum[0]
@@ -68,21 +87,40 @@ class AvroJsonConverter(object):
                 for s in expected_schema.schemas:
                     name = self._fullname(s)
                     if name == value_type:
-                        if self.validate(s, value, skip_logical_types):
-                            return True
+                        return self.validate(s, value, skip_logical_types)
                         # If the specialized validation fails, we still attempt normal validation.
 
-            return True in [self.validate(s, datum, skip_logical_types) for s in expected_schema.schemas]
+            # Check if any single one of the union type passes
+            validation_errors = \
+                list(filter(lambda x: x, [self.validate(s, datum, skip_logical_types)
+                                          for s in expected_schema.schemas]))
+            if validation_errors:
+                return errors
+            else:
+                errors[UNION_TYPE_ERROR] = validation_errors
         elif schema_type in ['record', 'error', 'request']:
-            return ((isinstance(datum, dict) or isinstance(datum, DictWrapper)) and
-                    False not in
-                    [self.validate(f.type, datum.get(f.name), skip_logical_types) for f in expected_schema.fields])
+            if isinstance(datum, dict) or isinstance(datum, DictWrapper):
+                validation_errors = list(filter(None, [self.validate(f.type, datum.get(f.name), skip_logical_types)
+                                                       for f in expected_schema.fields]))
+                if not self.is_list_empty(validation_errors):
+                    errors[RECORD_TYPE_ERROR] = validation_errors
+            else:
+                errors[RECORD_TYPE_ERROR] = {"expected": expected_schema.type, "actual": datum}
         elif not self.fastavro and schema_type == 'bytes':
             # Specialization for bytes, which are encoded as strings in JSON.
             if isinstance(datum, str):
-                return True
+                return errors
 
-        return io_validate(expected_schema, datum)
+        elif not io_validate(expected_schema, datum):
+            errors[IO_VALIDATION_ERROR] = {"expected": expected_schema.type, "actual": datum}
+        return errors
+
+    @staticmethod
+    def is_list_empty(input_list: list):
+        for item in input_list:
+            if item:
+                return False
+        return True
 
     def from_json_object(self, json_obj, writers_schema=None, readers_schema=None):
         if readers_schema is None:
@@ -106,7 +144,9 @@ class AvroJsonConverter(object):
             raise Exception("Could not determine writer's schema from the object type and schema was not passed")
         assert isinstance(writers_schema, schema.Schema)
 
-        if not self.validate(writers_schema, data_obj):
+        errors = self.validate(writers_schema, data_obj)
+        if errors:
+            print(errors, "\n", file=sys.stderr)
             raise io.AvroTypeException(writers_schema, data_obj)
 
         return self._generic_to_json(data_obj, writers_schema)
@@ -204,7 +244,8 @@ class AvroJsonConverter(object):
                 break
 
             # Fallback to schema guessing based on validation.
-            if self.validate(candidate_schema, data_obj):
+            errors = self.validate(candidate_schema, data_obj)
+            if not errors:
                 index_of_schema = i
                 if candidate_schema.type == 'boolean':
                     break
@@ -304,7 +345,8 @@ class AvroJsonConverter(object):
                     return self._generic_from_json(value, s, readers_schema)
 
         for s in writers_schema.schemas:
-            if self.validate(s, json_obj, skip_logical_types=True):
+            errors = self.validate(s, json_obj, skip_logical_types=True)
+            if not errors:
                 return self._generic_from_json(json_obj, s, readers_schema)
         raise schema.AvroException('Datum union type not in schema: %s', value_type)
     

@@ -50,7 +50,7 @@ class DictWrapper:
     def _restore_defaults(self) -> None:
         pass
 
-    def validate(self) -> bool:
+    def validate(self) -> dict:
         """
         Checks the current object against its pre-defined schema. This does
         not ensure that an object is completely valid (e.g. we don't check that
