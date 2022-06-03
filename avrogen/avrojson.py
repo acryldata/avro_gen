@@ -354,6 +354,9 @@ class AvroJsonConverter(object):
                     else:
                         raise ValueError(f'{readers_schema.fullname} is missing required field: {field.name}')
             result[field.name] = field_value
-        if input_keys:
-            raise ValueError(f'{readers_schema.fullname} contains extra fields: {input_keys}')
+        # John Joyce - 6/2/2022
+        # Be forgiving of extra fields - do not throw if there are fields that we do not know about.
+        # This is because we do not have the true writer schema at the time of binding an object from json.
+        # if input_keys:
+        #    raise ValueError(f'{readers_schema.fullname} contains extra fields: {input_keys}')
         return self._instantiate_record(result, writers_schema, readers_schema)
