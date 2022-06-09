@@ -1,11 +1,11 @@
 from avrogen import avrojson
-from avrogen import logical
 from avro import schema
 import unittest
 import six
 import datetime
 
 make_avsc_object = schema.make_avsc_object
+
 
 class AvroJsonTest(unittest.TestCase):
     converter = avrojson.AvroJsonConverter()

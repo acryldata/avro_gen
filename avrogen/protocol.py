@@ -7,8 +7,15 @@ from avro import protocol, schema
 
 from . import namespace as ns_
 from .tabbed_writer import TabbedWriter
-from .core_writer import write_preamble, write_get_schema, start_namespace, write_reader_impl, clean_fullname
-from .core_writer import write_schema_record, write_enum, write_read_file, generate_namespace_modules
+from .core_writer import write_preamble
+from .core_writer import write_get_schema
+from .core_writer import start_namespace
+from .core_writer import write_reader_impl
+from .core_writer import clean_fullname
+from .core_writer import write_schema_record
+from .core_writer import write_enum
+from .core_writer import write_read_file
+from .core_writer import generate_namespace_modules
 from .protocol_writer import write_protocol_request
 
 

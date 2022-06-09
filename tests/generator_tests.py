@@ -1,7 +1,6 @@
 import os
 import unittest
 import avrogen
-import sys
 import importlib
 import shutil
 from avro import io
@@ -10,10 +9,8 @@ import tempfile
 import avrogen.schema
 import avrogen.protocol
 from avrogen.dict_wrapper import DictWrapper
-import logging
 import sys
 import datetime
-import six
 
 if not hasattr(schema, 'parse'):
     # Older versions of avro used a capital P in Parse.
@@ -23,6 +20,7 @@ if not hasattr(schema, 'parse'):
 # logging.getLogger('avrogen.schema').setLevel(logging.DEBUG)
 
 unittest.TestLoader.sortTestMethodsUsing = None
+
 
 class GeneratorTestCase(unittest.TestCase):
     TEST_NUMBER = 1
@@ -207,7 +205,6 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(kop, 'known'))
         self.assertTrue(hasattr(kop, 'data'))
 
-    @unittest.skip("don't care about logical types")
     def test_logical(self):
         schema_json = self.read_schema('logical_types.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir, use_logical_types=True)
@@ -217,12 +214,19 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(root_module, 'LogicalTypesTest'))
         LogicalTypesTest = root_module.LogicalTypesTest
 
-        instance = LogicalTypesTest()
-
         import decimal
         import datetime
         import pytz
         import tzlocal
+
+        instance = LogicalTypesTest(
+            decimalField=decimal.Decimal(1.0),
+            dateField=datetime.date.today(),
+            timeMillisField=datetime.datetime.now().time(),
+            timeMicrosField=datetime.datetime.now().time(),
+            timestampMillisField=datetime.datetime.now(),
+            timestampMicrosField=datetime.datetime.now()
+        )
 
         self.assertIsInstance(instance.decimalField, decimal.Decimal)
         self.assertIsInstance(instance.decimalFieldWithDefault, decimal.Decimal)

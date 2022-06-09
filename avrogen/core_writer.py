@@ -30,6 +30,7 @@ __PRIMITIVE_TYPE_MAPPING = {
     'string': str,
 }
 
+
 def clean_fullname(fullname):
     return fullname.lstrip('.')
 
@@ -46,17 +47,14 @@ def get_default(field, use_logical_types, my_full_name=None, f_name=None):
     default_written = False
     f_name = f_name if f_name is not None else field.name
     if keyword.iskeyword(field.name):
-        f_name =  field.name + get_field_type_name(field.type, use_logical_types)
+        f_name = field.name + get_field_type_name(field.type, use_logical_types)
 
     default_type, nullable = find_type_of_default(field.type)
     if field.has_default:
         if use_logical_types and default_type.props.get('logicalType') \
                 and default_type.props.get('logicalType') in logical.DEFAULT_LOGICAL_TYPES:
             lt = logical.DEFAULT_LOGICAL_TYPES[default_type.props.get('logicalType')]
-            v = lt.initializer(convert_default(my_full_name,
-                                                idx=i,
-                                                do_json=isinstance(default_type,
-                                                schema.RecordSchema)))
+            v = lt.initializer(convert_default(idx=f_name, full_name=my_full_name, do_json=isinstance(default_type, schema.RecordSchema)))
             return v
         elif isinstance(default_type, schema.RecordSchema):
             d = convert_default(idx=f_name, do_json=True)

@@ -1,4 +1,3 @@
-
 import json
 import os
 import six
@@ -6,13 +5,17 @@ from avro import schema
 
 from io import StringIO
 
-
 from avro.schema import make_avsc_object
 
-from .core_writer import generate_namespace_modules, clean_fullname
+from .core_writer import generate_namespace_modules
+from .core_writer import clean_fullname
 from .tabbed_writer import TabbedWriter
-from .core_writer import write_preamble, start_namespace, write_schema_record, write_enum, write_read_file
-from .core_writer import write_get_schema, write_reader_impl
+from .core_writer import write_preamble
+from .core_writer import write_schema_record
+from .core_writer import write_enum
+from .core_writer import write_read_file
+from .core_writer import write_get_schema
+from .core_writer import write_reader_impl
 import logging
 
 logger = logging.getLogger('avrogen.schema')

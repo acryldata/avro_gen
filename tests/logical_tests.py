@@ -8,11 +8,9 @@ import decimal
 import contextlib
 import datetime
 import pytz
-import tzlocal
-import time
-import six
 
 make_avsc_object = schema.make_avsc_object
+
 
 class LogicalTypeTest(unittest.TestCase):
     @contextlib.contextmanager

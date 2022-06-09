@@ -1,5 +1,6 @@
 import six
 
+
 class TabbedWriter(object):
     class Indent(object):
         def __init__(self, writer):

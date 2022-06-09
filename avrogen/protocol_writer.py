@@ -1,5 +1,7 @@
 from . import namespace as ns_
-from .core_writer import write_defaults, write_fields, clean_fullname
+from .core_writer import write_defaults
+from .core_writer import write_fields
+from .core_writer import clean_fullname
 
 
 def write_protocol_request(message, namespace, writer, use_logical_types):

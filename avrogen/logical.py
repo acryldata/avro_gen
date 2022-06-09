@@ -1,11 +1,9 @@
 from __future__ import division
 from avro import schema, io
-import functools
 import abc
 import six
 import datetime
 import decimal
-import struct
 import time
 import pytz
 import tzlocal
@@ -184,7 +182,8 @@ class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
         # so will need to switch to datetime arithmetic
         #EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
 
-        EPOCH_TT = -datetime.datetime(1970, 1, 1).astimezone(tzlocal.get_localzone()).utcoffset().total_seconds()
+        # https://stackoverflow.com/a/71683231/8973375
+        EPOCH_TT = -datetime.datetime(1970, 1, 1).replace(tzinfo=tzlocal.get_localzone()).utcoffset().total_seconds()
 
         if not isinstance(value, datetime.datetime):
             if isinstance(value, datetime.date):
