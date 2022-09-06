@@ -80,8 +80,7 @@ class AvroJsonConverter(object):
             return True in [self.validate(s, datum, skip_logical_types) for s in expected_schema.schemas]
         elif schema_type in ['record', 'error', 'request']:
             return ((isinstance(datum, dict) or isinstance(datum, DictWrapper)) and
-                    False not in
-                    [self.validate(f.type, datum.get(f.name), skip_logical_types) for f in expected_schema.fields])
+                    all(self.validate(f.type, datum.get(f.name, f.default) if f.has_default else datum.get(f.name), skip_logical_types) for f in expected_schema.fields))
         elif not self.fastavro and schema_type == 'bytes':
             # Specialization for bytes, which are encoded as strings in JSON.
             if isinstance(datum, str):
