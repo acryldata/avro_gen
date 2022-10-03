@@ -22,12 +22,13 @@ logger = logging.getLogger('avrogen.schema')
 logger.setLevel(logging.INFO)
 
 
-def generate_schema(schema_json, use_logical_types=False, custom_imports=None, avro_json_converter=None):
+def generate_schema(schema_json, use_logical_types=False, custom_imports=None, avro_json_converter=None, class_naming_strategy=None):
     """
     Generate file containing concrete classes for RecordSchemas in given avro schema json
     :param str schema_json: JSON representing avro schema
     :param list[str] custom_imports: Add additional import modules
     :param str avro_json_converter: AvroJsonConverter type to use for default values
+    :param function class_naming_strategy: Function to compute class names from full names
     :return Dict[str, str]:
     """
 
@@ -61,7 +62,7 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
             current_namespace = namespace
         if isinstance(field_schema, schema.RecordSchema):
             logger.debug(f'Writing schema: {clean_fullname(field_schema.fullname)}')
-            write_schema_record(field_schema, writer, use_logical_types)
+            write_schema_record(field_schema, writer, use_logical_types, class_naming_strategy=class_naming_strategy)
         elif isinstance(field_schema, schema.EnumSchema):
             logger.debug(f'Writing enum: {field_schema.fullname}', field_schema.fullname)
             write_enum(field_schema, writer)
@@ -71,14 +72,14 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
 
     # Lookup table for fullname.
     for name, field_schema in names:
-        n = clean_fullname(field_schema.name)
+        classname = class_naming_strategy(name) if class_naming_strategy else f'{clean_fullname(field_schema.name)}Class'
         full = field_schema.fullname
-        writer.write(f"\n'{full}': {n}Class,")
+        writer.write(f"\n'{full}': {classname},")
 
     # Lookup table for names without namespace.
     for name, field_schema in names:
-        n = clean_fullname(field_schema.name)
-        writer.write(f"\n'{n}': {n}Class,")
+        classname = class_naming_strategy(name) if class_naming_strategy else f'{clean_fullname(field_schema.name)}Class'
+        writer.write(f"\n'{classname}': {classname},")
 
     writer.untab()
     writer.write('\n}\n\n')
@@ -116,12 +117,13 @@ def write_populate_schemas(writer):
     writer.write('\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))\n')
 
 
-def write_namespace_modules(ns_dict, output_folder):
+def write_namespace_modules(ns_dict, output_folder, class_naming_strategy=None):
     """
     Writes content of the generated namespace modules. A python module will be created for each namespace
     and will import concrete schema classes from SchemaClasses
     :param ns_dict:
     :param output_folder:
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
     for ns in six.iterkeys(ns_dict):
@@ -130,19 +132,22 @@ def write_namespace_modules(ns_dict, output_folder):
             if ns != '':
                 currency += '.' * len(ns.split('.'))
             for name in ns_dict[ns]:
-                f.write(f'from {currency}schema_classes import {name}Class\n')
+                classname = class_naming_strategy(ns + '.' + name) if class_naming_strategy else f'{name}Class'
+                f.write(f'from {currency}schema_classes import {classname}\n')
 
             f.write('\n\n')
 
             for name in ns_dict[ns]:
-                f.write(f"{name} = {name}Class\n")
+                if not class_naming_strategy:
+                    f.write(f"{name} = {name}Class\n")
 
 
-def write_specific_reader(record_types, output_folder, use_logical_types):
+def write_specific_reader(record_types, output_folder, use_logical_types, class_naming_strategy=None):
     """
     Writes specific reader for a avro schema into generated root module
     :param record_types:
     :param output_folder:
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
@@ -152,23 +157,25 @@ def write_specific_reader(record_types, output_folder, use_logical_types):
         writer.write('\nfrom .schema_classes import SCHEMA as get_schema_type')
         writer.write('\nfrom .schema_classes import _json_converter as json_converter')
         for t in record_types:
-            writer.write(f'\nfrom .schema_classes import {t.split(".")[-1]}Class')
+            classname = class_naming_strategy(t) if class_naming_strategy else f'{t.split(".")[-1]}Class'
+            writer.write(f'\nfrom .schema_classes import {classname}')
         writer.write('\nfrom avro.io import DatumReader')
         if use_logical_types:
             writer.write('\nfrom avrogen import logical')
 
-        write_reader_impl(record_types, writer, use_logical_types)
+        write_reader_impl(record_types, writer, use_logical_types, class_naming_strategy=class_naming_strategy)
 
 
-def write_schema_files(schema_json, output_folder, use_logical_types=False, custom_imports=None):
+def write_schema_files(schema_json, output_folder, use_logical_types=False, custom_imports=None, class_naming_strategy=None):
     """
     Generates concrete classes, namespace modules, and a SpecificRecordReader for a given avro schema
     :param str schema_json: JSON containing avro schema
     :param str output_folder: Folder in which to create generated files
     :param list[str] custom_imports: Add additional import modules
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
-    schema_py, names = generate_schema(schema_json, use_logical_types, custom_imports)
+    schema_py, names = generate_schema(schema_json, use_logical_types, custom_imports, class_naming_strategy=class_naming_strategy)
     names = sorted(names)
 
     if not os.path.isdir(output_folder):
@@ -185,5 +192,5 @@ def write_schema_files(schema_json, output_folder, use_logical_types=False, cust
     with open(os.path.join(output_folder, "__init__.py"), "w+") as f:
         pass  # make sure we create this file from scratch
 
-    write_namespace_modules(ns_dict, output_folder)
-    write_specific_reader(names, output_folder, use_logical_types)
+    write_namespace_modules(ns_dict, output_folder, class_naming_strategy=class_naming_strategy)
+    write_specific_reader(names, output_folder, use_logical_types, class_naming_strategy=class_naming_strategy)

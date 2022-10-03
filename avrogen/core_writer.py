@@ -43,7 +43,7 @@ def convert_default(idx, full_name=None, do_json=True):
         return f'self.RECORD_SCHEMA.fields_dict["{idx}"].default'
 
 
-def get_default(field, use_logical_types, my_full_name=None, f_name=None):
+def get_default(field, use_logical_types, my_full_name=None, f_name=None, class_naming_strategy=None):
     default_written = False
     f_name = f_name if f_name is not None else field.name
     if keyword.iskeyword(field.name):
@@ -85,16 +85,21 @@ def get_default(field, use_logical_types, my_full_name=None, f_name=None):
         elif isinstance(default_type, schema.FixedSchema):
             return 'bytes()'
         elif isinstance(default_type, schema.RecordSchema):
-            f = clean_fullname(default_type.name)
-            return f'{f}Class.construct_with_defaults()'
+            classname = (
+                class_naming_strategy(default_type.fullname)
+                if class_naming_strategy
+                else f'{clean_fullname(default_type.name)}Class'
+            )
+            return f'{classname}.construct_with_defaults()'
     raise AttributeError('cannot get default for field')
 
-def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
+def write_defaults(record, writer, my_full_name=None, use_logical_types=False, class_naming_strategy=None):
     """
     Write concrete record class's constructor part which initializes fields with default values
     :param schema.RecordSchema record: Avro RecordSchema whose class we are generating
     :param TabbedWriter writer: Writer to write to
     :param str my_full_name: Full name of the RecordSchema we are writing. Should only be provided for protocol requests.
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
     i = 0
@@ -105,7 +110,7 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
         f_name = field.name
         if keyword.iskeyword(field.name):
             f_name =  field.name + get_field_type_name(field.type, use_logical_types)
-        default = get_default(field, use_logical_types, my_full_name=my_full_name, f_name=f_name)
+        default = get_default(field, use_logical_types, my_full_name=my_full_name, f_name=f_name, class_naming_strategy=class_naming_strategy)
         writer.write(f'\nself.{f_name} = {default}')
         something_written = True
         i += 1
@@ -113,16 +118,17 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
         writer.write('\npass')
 
 
-def write_fields(record, writer, use_logical_types):
+def write_fields(record, writer, use_logical_types, class_naming_strategy=None):
     """
     Write field definitions for a given RecordSchema
     :param schema.RecordSchema record: Avro RecordSchema we are generating
     :param TabbedWriter writer: Writer to write to
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
     writer.write('\n\n')
     for field in record.fields:  # type: schema.Field
-        write_field(field, writer, use_logical_types)
+        write_field(field, writer, use_logical_types, class_naming_strategy=class_naming_strategy)
 
 def get_field_name(field, use_logical_types):
     name = field.name
@@ -130,11 +136,12 @@ def get_field_name(field, use_logical_types):
         name =  field.name + get_field_type_name(field.type, use_logical_types)
     return name
 
-def write_field(field, writer, use_logical_types):
+def write_field(field, writer, use_logical_types, class_naming_strategy=None):
     """
     Write a single field definition
     :param field:
     :param writer:
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
     name = get_field_name(field, use_logical_types)
@@ -152,7 +159,13 @@ def {name}(self, value: {ret_type_name}) -> None:
     {set_docstring}
     self._inner_dict['{raw_name}'] = value
 
-'''.format(name=name, get_docstring=get_docstring, set_docstring=set_docstring, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+'''.format(
+    name=name,
+    get_docstring=get_docstring,
+    set_docstring=set_docstring,
+    raw_name=field.name,
+    ret_type_name=get_field_type_name(field.type, use_logical_types, class_naming_strategy=class_naming_strategy)
+))
 
 
 def get_primitive_field_initializer(field_schema):
@@ -168,10 +181,11 @@ def get_primitive_field_initializer(field_schema):
     return get_field_type_name(field_schema, False) + "()"
 
 
-def get_field_type_name(field_schema, use_logical_types):
+def get_field_type_name(field_schema, use_logical_types, class_naming_strategy=None):
     """
     Gets a python type-hint for a given schema
     :param schema.Schema field_schema:
+    :param function class_naming_strategy: Function to compute class names from full names
     :return: String containing python type hint
     """
     if use_logical_types and field_schema.props.get('logicalType'):
@@ -190,16 +204,21 @@ def get_field_type_name(field_schema, use_logical_types):
         # For enums, we have their "class" types, but they're actually
         # represented as strings. This is a decent hack to work around
         # the issue.
-        return f'Union[str, "{field_schema.name}Class"]'
+        classname = class_naming_strategy(field_schema.fullname) if class_naming_strategy else f'{field_schema.name}Class'
+        return f'Union[str, "{classname}"]'
     elif isinstance(field_schema, schema.NamedSchema):
-        return f'"{field_schema.name}Class"'
+        classname = class_naming_strategy(field_schema.fullname) if class_naming_strategy else f'{field_schema.name}Class'
+        return f'"{classname}"'
     elif isinstance(field_schema, schema.ArraySchema):
         return 'List[' + get_field_type_name(field_schema.items, use_logical_types) + ']'
     elif isinstance(field_schema, schema.MapSchema):
         return 'Dict[str, ' + get_field_type_name(field_schema.values, use_logical_types) + ']'
     elif isinstance(field_schema, schema.UnionSchema):
-        type_names = [get_field_type_name(x, use_logical_types) for x in field_schema.schemas if
-                      get_field_type_name(x, use_logical_types)]
+        type_names = [
+            get_field_type_name(x, use_logical_types, class_naming_strategy=class_naming_strategy)
+            for x in field_schema.schemas
+            if get_field_type_name(x, use_logical_types, class_naming_strategy=class_naming_strategy)
+        ]
         if len(type_names) > 1:
             return 'Union[' + ', '.join(type_names) + ']'
         elif len(type_names) == 1:
@@ -304,11 +323,12 @@ def write_get_schema(writer):
         writer.write('\nreturn __SCHEMAS.get(fullname)\n\n')
 
 
-def write_reader_impl(record_types, writer, use_logical_types):
+def write_reader_impl(record_types, writer, use_logical_types, class_naming_strategy=None):
     """
     Write specific reader implementation
     :param list[schema.RecordSchema] record_types:
     :param writer:
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
     writer.write('\n\n\nclass SpecificDatumReader(%s):' % (
@@ -317,10 +337,11 @@ def write_reader_impl(record_types, writer, use_logical_types):
         writer.write('\nSCHEMA_TYPES = {')
         with writer.indent():
             for t in record_types:
-                t_class = t.split('.')[-1]
-                writer.write('\n"{t_class}": {t_class}Class,'.format(t_class=t_class))
-                writer.write('\n".{t_class}": {t_class}Class,'.format(t_class=t_class))
-                writer.write('\n"{f_class}": {t_class}Class,'.format(t_class=t_class, f_class=t))
+                t_class = class_naming_strategy(t) if class_naming_strategy else t.split(".")[-1]
+                classname = class_naming_strategy(t) if class_naming_strategy else f'{t.split(".")[-1]}Class'
+                writer.write('\n"{t_class}": {classname},'.format(t_class=t_class, classname=classname))
+                writer.write('\n".{t_class}": {classname},'.format(t_class=t_class, classname=classname))
+                writer.write('\n"{f_class}": {classname},'.format(t_class=t_class, f_class=t, classname=classname))
 
         writer.write('\n}')
         writer.write('\n\n\ndef __init__(self, readers_schema=None, **kwargs):')
@@ -371,16 +392,21 @@ def generate_namespace_modules(names, output_folder):
     return ns_dict
 
 
-def write_schema_record(record, writer, use_logical_types):
+def write_schema_record(record, writer, use_logical_types, class_naming_strategy=None):
     """
     Writes class representing Avro record schema
     :param avro.schema.RecordSchema record:
     :param TabbedWriter writer:
+    :param function class_naming_strategy: Function to compute class names from full names
     :return:
     """
-
-    _, type_name = ns_.split_fullname(record.fullname)
-    writer.write('''\nclass {name}Class(DictWrapper):'''.format(name=type_name))
+    fullname = record.fullname
+    classname = (
+        class_naming_strategy(fullname)
+        if class_naming_strategy
+        else f'{ns_.split_fullname(fullname)[-1]}Class'
+    )
+    writer.write("""\nclass {name}(DictWrapper):""".format(name=classname))
 
     with writer.indent():
         writer.write('\n')
@@ -390,24 +416,24 @@ def write_schema_record(record, writer, use_logical_types):
             writer.write('# No docs available.')
         writer.write('\n\nRECORD_SCHEMA = get_schema_type("%s")' % (record.fullname))
 
-        write_record_init(record, writer, use_logical_types)
+        write_record_init(record, writer, use_logical_types, class_naming_strategy=class_naming_strategy)
 
-        write_fields(record, writer, use_logical_types)
+        write_fields(record, writer, use_logical_types, class_naming_strategy=class_naming_strategy)
 
 
-def write_record_init(record, writer, use_logical_types):
+def write_record_init(record, writer, use_logical_types, class_naming_strategy=None):
     writer.write('\ndef __init__(self,')
     with writer.indent():
         delayed_lines = []
         default_map: Dict[str, str] = {}
         for field in record.fields:  # type: schema.Field
             name = get_field_name(field, use_logical_types)
-            ret_type_name = get_field_type_name(field.type, use_logical_types)
+            ret_type_name = get_field_type_name(field.type, use_logical_types, class_naming_strategy=class_naming_strategy)
             default_type, nullable = find_type_of_default(field.type)
 
             if not nullable and field.has_default:
                 # print(record.name, field.name, field.default)
-                default = get_default(field, use_logical_types, f_name=field.name)
+                default = get_default(field, use_logical_types, f_name=field.name, class_naming_strategy=class_naming_strategy)
                 default_map[name] = default
                 ret_type_name = f"Optional[{ret_type_name}]"
                 nullable = True
@@ -437,7 +463,8 @@ def write_record_init(record, writer, use_logical_types):
                 writer.write(f'\nself.{name} = {name}')
 
     writer.write('\n\n@classmethod')
-    writer.write(f'\ndef construct_with_defaults(cls) -> "{record.name}Class":')
+    classname = class_naming_strategy(record.fullname) if class_naming_strategy else f'{record.name}Class'
+    writer.write(f'\ndef construct_with_defaults(cls) -> "{classname}":')
     with writer.indent():
         writer.write('\nself = cls.construct({})')
         writer.write('\nself._restore_defaults()')
@@ -447,7 +474,7 @@ def write_record_init(record, writer, use_logical_types):
     writer.write('\n')
     writer.write(f'\ndef _restore_defaults(self) -> None:')
     with writer.indent():
-        write_defaults(record, writer, use_logical_types=use_logical_types)
+        write_defaults(record, writer, use_logical_types=use_logical_types, class_naming_strategy=class_naming_strategy)
 
 
 def write_enum(enum, writer):

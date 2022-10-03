@@ -205,6 +205,34 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(kop, 'known'))
         self.assertTrue(hasattr(kop, 'data'))
 
+    def test_tweet_custom(self):
+        def class_naming_strategy(fullname):
+            return 'Custom' + fullname.split('.')[-1]
+
+        schema_json = self.read_schema('tweet.json')
+        avrogen.schema.write_schema_files(schema_json, self.output_dir, class_naming_strategy=class_naming_strategy)
+        root_module, _ = self.load_gen(self.test_name)
+        twitter_ns = importlib.import_module('.com.bifflabs.grok.model.twitter.avro', self.test_name)
+        common_ns = importlib.import_module('.com.bifflabs.grok.model.common.avro', self.test_name)
+
+        self.assertTrue(hasattr(twitter_ns, 'CustomAvroTweet'))
+        self.assertTrue(hasattr(twitter_ns, 'CustomAvroTweetMetadata'))
+        self.assertTrue(hasattr(common_ns, 'CustomAvroPoint'))
+        self.assertTrue(hasattr(common_ns, 'CustomAvroDateTime'))
+        self.assertTrue(hasattr(common_ns, 'CustomAvroKnowableOptionString'))
+        self.assertTrue(hasattr(common_ns, 'CustomAvroKnowableListString'))
+        self.assertTrue(hasattr(common_ns, 'CustomAvroKnowableBoolean'))
+        self.assertTrue(hasattr(common_ns, 'CustomAvroKnowableOptionPoint'))
+
+        self.assertIsNotNone(twitter_ns.CustomAvroTweet.construct_with_defaults())
+        self.assertIsNotNone(twitter_ns.CustomAvroTweetMetadata.construct_with_defaults())
+        self.assertIsNotNone(common_ns.CustomAvroPoint.construct_with_defaults())
+        self.assertIsNotNone(common_ns.CustomAvroDateTime.construct_with_defaults())
+        self.assertIsNotNone(common_ns.CustomAvroKnowableOptionString.construct_with_defaults())
+        self.assertIsNotNone(common_ns.CustomAvroKnowableListString.construct_with_defaults())
+        self.assertIsNotNone(common_ns.CustomAvroKnowableBoolean.construct_with_defaults())
+        self.assertIsNotNone(common_ns.CustomAvroKnowableOptionString.construct_with_defaults())
+
     def test_logical(self):
         schema_json = self.read_schema('logical_types.json')
         avrogen.schema.write_schema_files(schema_json, self.output_dir, use_logical_types=True)
