@@ -34,6 +34,11 @@ __PRIMITIVE_TYPE_MAPPING = {
 def clean_fullname(fullname):
     return fullname.lstrip('.')
 
+def _python_safe_name(name):
+    if keyword.iskeyword(name):
+        return f'{name}_'
+    return name
+
 
 def convert_default(idx, full_name=None, do_json=True):
     if do_json:
@@ -43,11 +48,9 @@ def convert_default(idx, full_name=None, do_json=True):
         return f'self.RECORD_SCHEMA.fields_dict["{idx}"].default'
 
 
-def get_default(field, use_logical_types, my_full_name=None, f_name=None):
+def get_default(field, use_logical_types, my_full_name=None):
     default_written = False
-    f_name = f_name if f_name is not None else field.name
-    if keyword.iskeyword(field.name):
-        f_name = field.name + get_field_type_name(field.type, use_logical_types)
+    f_name = field.name
 
     default_type, nullable = find_type_of_default(field.type)
     if field.has_default:
@@ -102,10 +105,8 @@ def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
 
     something_written = False
     for field in record.fields:
-        f_name = field.name
-        if keyword.iskeyword(field.name):
-            f_name =  field.name + get_field_type_name(field.type, use_logical_types)
-        default = get_default(field, use_logical_types, my_full_name=my_full_name, f_name=f_name)
+        f_name = get_field_name(field, use_logical_types)
+        default = get_default(field, use_logical_types, my_full_name=my_full_name)
         writer.write(f'\nself.{f_name} = {default}')
         something_written = True
         i += 1
@@ -125,10 +126,7 @@ def write_fields(record, writer, use_logical_types):
         write_field(field, writer, use_logical_types)
 
 def get_field_name(field, use_logical_types):
-    name = field.name
-    if keyword.iskeyword(field.name):
-        name =  field.name + get_field_type_name(field.type, use_logical_types)
-    return name
+    return _python_safe_name(field.name)
 
 def write_field(field, writer, use_logical_types):
     """
@@ -407,7 +405,7 @@ def write_record_init(record, writer, use_logical_types):
 
             if not nullable and field.has_default:
                 # print(record.name, field.name, field.default)
-                default = get_default(field, use_logical_types, f_name=field.name)
+                default = get_default(field, use_logical_types)
                 default_map[name] = default
                 ret_type_name = f"Optional[{ret_type_name}]"
                 nullable = True
