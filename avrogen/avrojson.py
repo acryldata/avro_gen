@@ -301,10 +301,9 @@ class AvroJsonConverter(object):
         value = None
         if not self.fastavro and isinstance(json_obj, dict):
             items = list(six.iteritems(json_obj))
-            if not items:
-                return None
-            value_type = items[0][0]
-            value = items[0][1]
+            if len(items) == 1:
+                value_type = items[0][0]
+                value = items[0][1]
         if self.fastavro and (isinstance(json_obj, list) or isinstance(json_obj, tuple)):
             if len(json_obj) == 2:
                 value_type = json_obj[0]
