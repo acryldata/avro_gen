@@ -1,6 +1,5 @@
-from typing import TypeVar
-from typing import Type
-from typing import TYPE_CHECKING
+from typing import TypeVar, ClassVar, Type, TYPE_CHECKING
+from avro.schema import RecordSchema
 
 if TYPE_CHECKING:
     from .avrojson import AvroJsonConverter
@@ -11,6 +10,9 @@ TC = TypeVar("TC", bound="DictWrapper")
 class DictWrapper:
     __slots__ = ["_inner_dict"]
     _inner_dict: dict
+
+    RECORD_SCHEMA: ClassVar[RecordSchema]
+    _json_converter: ClassVar["AvroJsonConverter"]
 
     def __init__(self):
         self._inner_dict = {}

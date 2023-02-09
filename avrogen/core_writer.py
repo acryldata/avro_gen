@@ -273,7 +273,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
         writer.write('from avrogen import logical\n')
     writer.write('from avro.schema import RecordSchema, make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
-    writer.write('from typing import List, Dict, Union, Optional\n')
+    writer.write('from typing import ClassVar, List, Dict, Union, Optional, Type\n')
     writer.write('\n')
 
 
@@ -297,9 +297,9 @@ def write_get_schema(writer):
     :return:
     """
     writer.write('\n__SCHEMAS: Dict[str, RecordSchema] = {}\n\n\n')
-    writer.write('def get_schema_type(fullname):')
+    writer.write('def get_schema_type(fullname: str) -> RecordSchema:')
     with writer.indent():
-        writer.write('\nreturn __SCHEMAS.get(fullname)\n\n')
+        writer.write('\nreturn __SCHEMAS[fullname]\n\n')
 
 
 def write_reader_impl(record_types, writer, use_logical_types):
