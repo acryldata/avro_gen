@@ -103,8 +103,8 @@ def write_schema_preamble(writer):
         writer.write('\nnames = avro_schema.Names()')
         writer.write('\nschema = make_avsc_object(json.loads(json_str), names)')
         writer.write('\nreturn names, schema')
-    writer.write('\n\n\nSCHEMA_JSON_STR = __read_file(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
-    writer.write('\n\n\n__NAMES, SCHEMA = __get_names_and_schema(SCHEMA_JSON_STR)')
+    writer.write('\n\n\n_SCHEMA_JSON_STR = __read_file(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
+    writer.write('\n\n\n__NAMES, _ = __get_names_and_schema(_SCHEMA_JSON_STR)')
 
 
 def write_populate_schemas(writer):

@@ -137,8 +137,7 @@ def write_field(field, writer, use_logical_types):
     """
     name = get_field_name(field, use_logical_types)
     doc = field.doc
-    get_docstring = f'"""Getter: {doc}"""' if doc else "# No docs available."
-    set_docstring = f'"""Setter: {doc}"""' if doc else "# No docs available."
+    get_docstring = f'"""{doc}"""' if doc else "# No docs available."
     writer.write('''
 @property
 def {name}(self) -> {ret_type_name}:
@@ -147,10 +146,9 @@ def {name}(self) -> {ret_type_name}:
 
 @{name}.setter
 def {name}(self, value: {ret_type_name}) -> None:
-    {set_docstring}
     self._inner_dict['{raw_name}'] = value
 
-'''.format(name=name, get_docstring=get_docstring, set_docstring=set_docstring, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+'''.format(name=name, get_docstring=get_docstring, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
 
 
 def get_primitive_field_initializer(field_schema):
