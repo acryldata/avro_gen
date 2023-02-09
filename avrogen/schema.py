@@ -104,7 +104,7 @@ def write_schema_preamble(writer):
         writer.write('\nschema = make_avsc_object(json.loads(json_str), names)')
         writer.write('\nreturn names, schema')
     writer.write('\n\n\n_SCHEMA_JSON_STR = __read_file(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
-    writer.write('\n\n\n__NAMES, _ = __get_names_and_schema(_SCHEMA_JSON_STR)')
+    writer.write('\n\n\n__NAMES, _SCHEMA = __get_names_and_schema(_SCHEMA_JSON_STR)')
 
 
 def write_populate_schemas(writer):
@@ -149,7 +149,7 @@ def write_specific_reader(record_types, output_folder, use_logical_types):
         writer = TabbedWriter(f)
         writer.write('from typing import cast')
         writer.write('\nfrom avrogen.dict_wrapper import DictWrapper')
-        writer.write('\nfrom .schema_classes import SCHEMA as get_schema_type')
+        writer.write('\nfrom .schema_classes import _SCHEMA as get_schema_type')
         writer.write('\nfrom .schema_classes import _json_converter as json_converter')
         for t in record_types:
             writer.write(f'\nfrom .schema_classes import {t.split(".")[-1]}Class')

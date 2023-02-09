@@ -89,7 +89,7 @@ def get_default(field, use_logical_types, my_full_name=None):
             return 'bytes()'
         elif isinstance(default_type, schema.RecordSchema):
             f = clean_fullname(default_type.name)
-            return f'{f}Class.construct_with_defaults()'
+            return f'{f}Class._construct_with_defaults()'
     raise AttributeError('cannot get default for field')
 
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
@@ -333,7 +333,7 @@ def write_reader_impl(record_types, writer, use_logical_types):
             with writer.indent():
                 writer.write('\ntp = SpecificDatumReader.SCHEMA_TYPES[readers_schema.fullname]')
                 writer.write('\nif issubclass(tp, DictWrapper):')
-                writer.write('\n    result = tp.construct(result)')
+                writer.write('\n    result = tp._construct(result)')
                 writer.write('\nelse:')
                 writer.write('\n    # tp is an enum')
                 writer.write('\n    result = tp(result)  # type: ignore')
@@ -431,14 +431,6 @@ def write_record_init(record, writer, use_logical_types):
                 writer.write(f'\n    self.{name} = {name}')
             else:
                 writer.write(f'\nself.{name} = {name}')
-
-    writer.write('\n\n@classmethod')
-    writer.write(f'\ndef construct_with_defaults(cls) -> "{record.name}Class":')
-    with writer.indent():
-        writer.write('\nself = cls.construct({})')
-        writer.write('\nself._restore_defaults()')
-        writer.write('\n')
-        writer.write('\nreturn self')
 
     writer.write('\n')
     writer.write(f'\ndef _restore_defaults(self) -> None:')

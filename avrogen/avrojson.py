@@ -322,7 +322,7 @@ class AvroJsonConverter(object):
     
     def _make_type(self, tp, record):
         if issubclass(tp, DictWrapper):
-            return tp.construct(record)
+            return tp._construct(record)
         return tp(record)
 
     def _instantiate_record(self, decoded_record, writers_schema, readers_schema):
