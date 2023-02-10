@@ -89,7 +89,7 @@ def get_default(field, use_logical_types, my_full_name=None):
             return 'bytes()'
         elif isinstance(default_type, schema.RecordSchema):
             f = clean_fullname(default_type.name)
-            return f'{f}Class.construct_with_defaults()'
+            return f'{f}Class._construct_with_defaults()'
     raise AttributeError('cannot get default for field')
 
 def write_defaults(record, writer, my_full_name=None, use_logical_types=False):
@@ -137,8 +137,7 @@ def write_field(field, writer, use_logical_types):
     """
     name = get_field_name(field, use_logical_types)
     doc = field.doc
-    get_docstring = f'"""Getter: {doc}"""' if doc else "# No docs available."
-    set_docstring = f'"""Setter: {doc}"""' if doc else "# No docs available."
+    get_docstring = f'"""{doc}"""' if doc else "# No docs available."
     writer.write('''
 @property
 def {name}(self) -> {ret_type_name}:
@@ -147,10 +146,9 @@ def {name}(self) -> {ret_type_name}:
 
 @{name}.setter
 def {name}(self, value: {ret_type_name}) -> None:
-    {set_docstring}
     self._inner_dict['{raw_name}'] = value
 
-'''.format(name=name, get_docstring=get_docstring, set_docstring=set_docstring, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
+'''.format(name=name, get_docstring=get_docstring, raw_name=field.name, ret_type_name=get_field_type_name(field.type, use_logical_types)))
 
 
 def get_primitive_field_initializer(field_schema):
@@ -273,7 +271,7 @@ def write_preamble(writer, use_logical_types, custom_imports):
         writer.write('from avrogen import logical\n')
     writer.write('from avro.schema import RecordSchema, make_avsc_object\n')
     writer.write('from avro import schema as avro_schema\n')
-    writer.write('from typing import List, Dict, Union, Optional\n')
+    writer.write('from typing import ClassVar, List, Dict, Union, Optional, Type\n')
     writer.write('\n')
 
 
@@ -297,9 +295,9 @@ def write_get_schema(writer):
     :return:
     """
     writer.write('\n__SCHEMAS: Dict[str, RecordSchema] = {}\n\n\n')
-    writer.write('def get_schema_type(fullname):')
+    writer.write('def get_schema_type(fullname: str) -> RecordSchema:')
     with writer.indent():
-        writer.write('\nreturn __SCHEMAS.get(fullname)\n\n')
+        writer.write('\nreturn __SCHEMAS[fullname]\n\n')
 
 
 def write_reader_impl(record_types, writer, use_logical_types):
@@ -335,7 +333,7 @@ def write_reader_impl(record_types, writer, use_logical_types):
             with writer.indent():
                 writer.write('\ntp = SpecificDatumReader.SCHEMA_TYPES[readers_schema.fullname]')
                 writer.write('\nif issubclass(tp, DictWrapper):')
-                writer.write('\n    result = tp.construct(result)')
+                writer.write('\n    result = tp._construct(result)')
                 writer.write('\nelse:')
                 writer.write('\n    # tp is an enum')
                 writer.write('\n    result = tp(result)  # type: ignore')
@@ -433,14 +431,6 @@ def write_record_init(record, writer, use_logical_types):
                 writer.write(f'\n    self.{name} = {name}')
             else:
                 writer.write(f'\nself.{name} = {name}')
-
-    writer.write('\n\n@classmethod')
-    writer.write(f'\ndef construct_with_defaults(cls) -> "{record.name}Class":')
-    with writer.indent():
-        writer.write('\nself = cls.construct({})')
-        writer.write('\nself._restore_defaults()')
-        writer.write('\n')
-        writer.write('\nreturn self')
 
     writer.write('\n')
     writer.write(f'\ndef _restore_defaults(self) -> None:')

@@ -74,9 +74,9 @@ class GeneratorTestCase(unittest.TestCase):
             def _restore_defaults(self):
                 self._inner_dict['hi'] = None
 
-        a = HiClass.construct({'hi': 'foo'})
-        b = HiClass.construct({'hi': 'foo'})
-        c = HiClass.construct({'hi': 'bar'})
+        a = HiClass._construct({'hi': 'foo'})
+        b = HiClass._construct({'hi': 'foo'})
+        c = HiClass._construct({'hi': 'bar'})
 
         self.assertEqual(a, b)
         self.assertNotEqual(a, c)
@@ -89,7 +89,7 @@ class GeneratorTestCase(unittest.TestCase):
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
 
-        long_list = root_module.LongList.construct_with_defaults()
+        long_list = root_module.LongList._construct_with_defaults()
         self.assertTrue(hasattr(long_list, 'value'))
         self.assertTrue(hasattr(long_list, 'next'))
 
@@ -101,7 +101,7 @@ class GeneratorTestCase(unittest.TestCase):
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
 
-        long_list = root_module.LongList.construct_with_defaults()
+        long_list = root_module.LongList._construct_with_defaults()
         self.assertTrue(hasattr(long_list, 'value'))
         self.assertTrue(hasattr(long_list, 'next'))
         self.assertTrue(hasattr(long_list, 'hello'))
@@ -114,7 +114,7 @@ class GeneratorTestCase(unittest.TestCase):
         # self.assertTrue(hasattr(schema_classes, 'SchemaClasses'))
         self.assertTrue(hasattr(root_module, 'LongList'))
 
-        long_list = root_module.LongList.construct_with_defaults()
+        long_list = root_module.LongList._construct_with_defaults()
         self.assertTrue(hasattr(long_list, 'value'))
         self.assertTrue(hasattr(long_list, 'next'))
 
@@ -150,14 +150,14 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertTrue(hasattr(common_ns, 'AvroKnowableBoolean'))
         self.assertTrue(hasattr(common_ns, 'AvroKnowableOptionPoint'))
 
-        tweet = twitter_ns.AvroTweet.construct_with_defaults()
-        tweet_meta = twitter_ns.AvroTweetMetadata.construct_with_defaults()
-        point = common_ns.AvroPoint.construct_with_defaults()
-        adt = common_ns.AvroDateTime.construct_with_defaults()
-        kos = common_ns.AvroKnowableOptionString.construct_with_defaults()
-        kls = common_ns.AvroKnowableListString.construct_with_defaults()
-        kb = common_ns.AvroKnowableBoolean.construct_with_defaults()
-        kop = common_ns.AvroKnowableOptionString.construct_with_defaults()
+        tweet = twitter_ns.AvroTweet._construct_with_defaults()
+        tweet_meta = twitter_ns.AvroTweetMetadata._construct_with_defaults()
+        point = common_ns.AvroPoint._construct_with_defaults()
+        adt = common_ns.AvroDateTime._construct_with_defaults()
+        kos = common_ns.AvroKnowableOptionString._construct_with_defaults()
+        kls = common_ns.AvroKnowableListString._construct_with_defaults()
+        kb = common_ns.AvroKnowableBoolean._construct_with_defaults()
+        kop = common_ns.AvroKnowableOptionString._construct_with_defaults()
 
         self.assertIsNotNone(twitter_ns.AvroTweet.RECORD_SCHEMA)
         self.assertIsNotNone(twitter_ns.AvroTweetMetadata.RECORD_SCHEMA)
@@ -362,18 +362,18 @@ class GeneratorTestCase(unittest.TestCase):
             AvroKnowableOptionString, AvroKnowableListString, AvroKnowableBoolean, AvroKnowableOptionPoint
         from twitter_schema import SpecificDatumReader
 
-        tweet = AvroTweet.construct_with_defaults()
+        tweet = AvroTweet._construct_with_defaults()
         tweet.ID = 1
         tweet.text = "AvroGenTest"
         tweet.authorScreenName = 'AvrogenTestName'
         tweet.authorProfileImageURL = 'http://'
         tweet.authorUserID = 2
 
-        tweet.location = AvroPoint.construct_with_defaults()
+        tweet.location = AvroPoint._construct_with_defaults()
         tweet.location.latitude = 1.0
         tweet.location.longitude = 2.0
         tweet.placeID = "Ether"
-        tweet.createdAt = AvroDateTime.construct_with_defaults()
+        tweet.createdAt = AvroDateTime._construct_with_defaults()
         tweet.createdAt.dateTimeString = "2016-10-10 10:10:10"
 
         tweet.metadata.inReplyToScreenName.known = False
