@@ -33,7 +33,7 @@ class AvroJsonConverter(object):
         ret.fastavro = enable
         return ret
 
-    def validate(self, expected_schema, datum, skip_logical_types=False):
+    def validate(self, expected_schema, datum, skip_logical_types=False) -> bool:
         if self.use_logical_types and expected_schema.props.get('logicalType') and not skip_logical_types \
                 and expected_schema.props.get('logicalType') in self.logical_types:
             return self.logical_types[expected_schema.props.get('logicalType')].can_convert(expected_schema) \
@@ -41,7 +41,7 @@ class AvroJsonConverter(object):
         schema_type = expected_schema.type
         if schema_type == 'array':
             return (isinstance(datum, list) and
-                    False not in [self.validate(expected_schema.items, d, skip_logical_types) for d in datum])
+                    all(self.validate(expected_schema.items, d, skip_logical_types) for d in datum))
         elif schema_type == 'map':
             return (isinstance(datum, dict) and
                     False not in [isinstance(k, six.string_types) for k in datum.keys()] and
@@ -75,18 +75,35 @@ class AvroJsonConverter(object):
                     if name == value_type:
                         if self.validate(s, value, skip_logical_types):
                             return True
-                        # If the specialized validation fails, we still attempt normal validation.
+                # If the specialized validation fails, we still attempt normal validation.
 
-            return True in [self.validate(s, datum, skip_logical_types) for s in expected_schema.schemas]
+            return any(self.validate(s, datum, skip_logical_types) for s in expected_schema.schemas)
         elif schema_type in ['record', 'error', 'request']:
-            return ((isinstance(datum, dict) or isinstance(datum, DictWrapper)) and
-                    all(self.validate(f.type, datum.get(f.name, f.default) if f.has_default else datum.get(f.name), skip_logical_types) for f in expected_schema.fields))
-        elif not self.fastavro and schema_type == 'bytes':
-            # Specialization for bytes, which are encoded as strings in JSON.
-            if isinstance(datum, str):
+            if isinstance(datum, dict):
+                return all(self.validate(f.type, datum.get(f.name, f.default) if f.has_default else datum.get(f.name), skip_logical_types) for f in expected_schema.fields)
+            elif isinstance(datum, DictWrapper):
+                # DictWrapper types should have defaults initialized already.
+                return all(self.validate(f.type, datum.get(f.name), skip_logical_types) for f in expected_schema.fields)
+            else:
+                return False
+
+        # PERF: We're basically "inlining" this logic from avro to avoid a few extra function calls.
+        #       This seems to have a ~10-15% impact on validation speed.
+        elif schema_type == 'null':
+            return datum is None
+        elif schema_type == 'string':
+            return isinstance(datum, str)
+        elif schema_type == 'bytes':
+            # Specialization for bytes, which we are encoding as strings in JSON.
+            if not self.fastavro and isinstance(datum, str):
                 return True
 
-        return io_validate(expected_schema, datum)
+            return io_validate(expected_schema, datum)
+        else:
+            # Defer to underlying avro lib for other types.
+            return io_validate(expected_schema, datum)
+        
+        assert False, 'this code should be unreachable'
 
     def from_json_object(self, json_obj, writers_schema=None, readers_schema=None):
         if readers_schema is None:
@@ -166,7 +183,7 @@ class AvroJsonConverter(object):
         return data_obj
 
     def _array_to_json(self, data_obj, writers_schema):
-        return [self._generic_to_json(x, writers_schema.items, True) for x in data_obj]
+        return [self._generic_to_json(x, writers_schema.items, was_within_array=True) for x in data_obj]
 
     def _map_to_json(self, data_obj, writers_schema):
         return {name: self._generic_to_json(x, writers_schema.values) for name, x in six.iteritems(data_obj)}
