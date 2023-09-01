@@ -4,9 +4,6 @@ import abc
 import six
 import datetime
 import decimal
-import time
-import pytz
-import tzlocal
 
 long = int
 
@@ -178,27 +175,18 @@ class TimestampMicrosLogicalTypeProcessor(LogicalTypeProcessor):
         return isinstance(datum, datetime.datetime)
 
     def convert(self, writers_schema, value):
-        # below doesn't work for time zones which are ahead of UTC,
-        # so will need to switch to datetime arithmetic
-        #EPOCH_TT = time.mktime((1970, 1, 1, 0, 0, 0, 0, 0, 0))
-
-        # https://stackoverflow.com/a/71683231/8973375
-        EPOCH_TT = -datetime.datetime(1970, 1, 1).replace(tzinfo=tzlocal.get_localzone()).utcoffset().total_seconds()
-
         if not isinstance(value, datetime.datetime):
             if isinstance(value, datetime.date):
-                value = tzlocal.get_localzone().localize(
-                    datetime.datetime(value.year, value.month, value.day, 0, 0, 0, 0))
+                value = datetime.datetime(value.year, value.month, value.day, 0, 0, 0, 0, datetime.timezone.utc)
 
         if value.tzinfo is None:
-            value = tzlocal.get_localzone().localize(value)
-        value = (time.mktime(value.utctimetuple()) - EPOCH_TT) + value.microsecond / 1000000.0
-        return long(value * 1000000)
+            value = value.replace(tzinfo=datetime.timezone.utc)
+        return long(value.timestamp() * 1000000)
 
     def convert_back(self, writers_schema, readers_schema, value):
         value = long(value) / 1000000.0
-        utc = datetime.datetime.utcfromtimestamp(value).replace(tzinfo=pytz.UTC)
-        return utc.astimezone(tzlocal.get_localzone()).replace(tzinfo=None)
+        utc = datetime.datetime.fromtimestamp(value, tz=datetime.timezone.utc)
+        return utc
 
     def does_match(self, writers_schema, readers_schema):
         if isinstance(writers_schema, schema.PrimitiveSchema):

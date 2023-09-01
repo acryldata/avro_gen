@@ -216,8 +216,6 @@ class GeneratorTestCase(unittest.TestCase):
 
         import decimal
         import datetime
-        import pytz
-        import tzlocal
 
         instance = LogicalTypesTest(
             decimalField=decimal.Decimal(1.0),
@@ -247,11 +245,11 @@ class GeneratorTestCase(unittest.TestCase):
         self.assertEqual(instance.timeMicrosFieldWithDefault, datetime.time(second=42))
 
         self.assertEqual(
-            tzlocal.get_localzone().localize(instance.timestampMicrosFieldWithDefault).astimezone(pytz.UTC),
-            datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=pytz.UTC))
+            instance.timestampMicrosFieldWithDefault,
+            datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=datetime.timezone.utc))
         self.assertEqual(
-            tzlocal.get_localzone().localize(instance.timestampMillisFieldWithDefault).astimezone(pytz.UTC),
-            datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=pytz.UTC))
+            instance.timestampMillisFieldWithDefault,
+            datetime.datetime(1970, 1, 1, 0, 0, 42, tzinfo=datetime.timezone.utc))
 
     @unittest.skip("don't care about protocol tests")
     def test_simple_protocol(self):

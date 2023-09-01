@@ -143,7 +143,7 @@ class LogicalTypeTest(unittest.TestCase):
 
         self.assertEqual(
             p.convert_back(test_schema2, test_schema2, p.convert(test_schema2, datetime.datetime(2016, 1, 1))),
-            datetime.datetime(2016, 1, 1))
+            datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc))
 
     def test_timestamp_millis(self):
         p = TimestampMillisLogicalTypeProcessor()
@@ -176,7 +176,7 @@ class LogicalTypeTest(unittest.TestCase):
 
         self.assertEqual(
             p.convert_back(test_schema2, test_schema2, p.convert(test_schema2, datetime.datetime(2016, 1, 1))),
-            datetime.datetime(2016, 1, 1))
+            datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc))
 
 
 if __name__ == "__main__":

@@ -458,9 +458,10 @@ def write_enum(enum, writer):
         writer.write('\n\n')
         symbolDocs = enum.other_props.get('symbolDocs', {})
         for field in enum.symbols:
-            if symbolDocs:
-                writer.write('\n')
+            # Docs for enum fields go _below_ the field.
+            writer.write('{name} = "{name}"\n'.format(name=field))
             if field in symbolDocs:
                 writer.write(f'"""{symbolDocs[field]}"""\n')
-            writer.write('{name} = "{name}"\n'.format(name=field))
+            if symbolDocs:
+                writer.write('\n')
         writer.write('\n')
