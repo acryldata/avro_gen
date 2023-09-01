@@ -55,7 +55,9 @@ setup(
     install_requires=[
         "avro>=1.10",
         "six",
-        "tzlocal",
+        # tzlocal 5 uses zoneinfo instead of pytz. Eventually we should
+        # make the switch, but for now we'll stick with a version cap.
+        "tzlocal<5",
         "pytz",
     ],
 )
