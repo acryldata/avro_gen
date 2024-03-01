@@ -16,22 +16,32 @@ except ImportError:
 
 _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
+_json_converter = None
+_json_converter_tuples = None
+
+def set_global_json_converter(json_converter: "AvroJsonConverter") -> None:
+    global _json_converter
+    _json_converter = json_converter
+    global _json_converter_tuples
+    _json_converter_tuples = json_converter.with_tuple_union(True)
+
+def get_global_json_converter(tuples: bool = False) -> "AvroJsonConverter":
+    if tuples:
+        assert _json_converter_tuples
+        return _json_converter_tuples
+    assert _json_converter
+    return _json_converter
+
 
 class AvroJsonConverter(object):
-    def __init__(self, use_logical_types=False, logical_types=logical.DEFAULT_LOGICAL_TYPES, schema_types=None):
+    def __init__(self, use_logical_types=False, logical_types=logical.DEFAULT_LOGICAL_TYPES, fastavro: bool = False, schema_types=None):
         self.use_logical_types = use_logical_types
         self.logical_types = logical_types or {}
         self.schema_types = schema_types or {}
-        self.fastavro = False
-        
-        # Register self with all the schema objects.
-        for klass in self.schema_types.values():
-            klass._json_converter = self
+        self.fastavro = fastavro
     
-    def with_tuple_union(self, enable=True) -> 'AvroJsonConverter':
-        ret = AvroJsonConverter(self.use_logical_types, self.logical_types, self.schema_types)
-        ret.fastavro = enable
-        return ret
+    def with_tuple_union(self, tuples=True) -> 'AvroJsonConverter':
+        return AvroJsonConverter(self.use_logical_types, self.logical_types, tuples, self.schema_types)
 
     def validate(self, expected_schema, datum, skip_logical_types=False) -> bool:
         if self.use_logical_types and expected_schema.props.get('logicalType') and not skip_logical_types \

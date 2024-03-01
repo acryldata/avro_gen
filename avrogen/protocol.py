@@ -160,7 +160,8 @@ def generate_protocol(protocol_json, use_logical_types=False, custom_imports=Non
     writer.untab()
     writer.write('\n}\n')
 
-    writer.write('_json_converter = %s\n\n' % avro_json_converter)
+    writer.write('_json_converter = %s\n' % avro_json_converter)
+    writer.write('avrojson.set_global_json_converter(_json_converter)\n')
     value = main_out.getvalue()
     main_out.close()
     return value, schema_names, request_names
