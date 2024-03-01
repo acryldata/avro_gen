@@ -83,7 +83,8 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
     writer.untab()
     writer.write('\n}\n\n')
 
-    writer.write(f'_json_converter = {avro_json_converter}\n\n')
+    writer.write(f'_json_converter = {avro_json_converter}\n')
+    writer.write('avrojson.set_global_json_converter(_json_converter)\n\n')
 
     value = main_out.getvalue()
     main_out.close()

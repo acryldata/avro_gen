@@ -12,7 +12,6 @@ class DictWrapper:
     _inner_dict: dict
 
     RECORD_SCHEMA: ClassVar[RecordSchema]
-    _json_converter: ClassVar["AvroJsonConverter"]
 
     def __init__(self):
         self._inner_dict = {}
@@ -43,17 +42,18 @@ class DictWrapper:
         return cls._construct({})
 
     @classmethod
-    def _get_json_converter(cls) -> "AvroJsonConverter":
-        # This attribute will be set by the AvroJsonConverter's init method.
-        return cls._json_converter
+    def _get_json_converter(cls, tuples: bool = False) -> "AvroJsonConverter":
+        import avrogen.avrojson
+
+        return avrogen.avrojson.get_global_json_converter(tuples)
 
     @classmethod
     def from_obj(cls: Type[TC], obj: dict, tuples: bool = False) -> TC:
-        conv = cls._get_json_converter().with_tuple_union(tuples)
+        conv = cls._get_json_converter(tuples=tuples)
         return conv.from_json_object(obj, cls.RECORD_SCHEMA)
 
     def to_obj(self, tuples: bool = False) -> dict:
-        conv = self._get_json_converter().with_tuple_union(tuples)
+        conv = self._get_json_converter(tuples=tuples)
         return conv.to_json_object(self, self.RECORD_SCHEMA)
 
     def to_avro_writable(self, fastavro: bool = False) -> dict:
