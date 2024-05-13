@@ -18,11 +18,13 @@ from .core_writer import write_get_schema
 from .core_writer import write_reader_impl
 import logging
 
-logger = logging.getLogger('avrogen.schema')
+logger = logging.getLogger("avrogen.schema")
 logger.setLevel(logging.INFO)
 
 
-def generate_schema(schema_json, use_logical_types=False, custom_imports=None, avro_json_converter=None):
+def generate_schema(
+    schema_json, use_logical_types=False, custom_imports=None, avro_json_converter=None
+):
     """
     Generate file containing concrete classes for RecordSchemas in given avro schema json
     :param str schema_json: JSON representing avro schema
@@ -32,16 +34,22 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
     """
 
     if avro_json_converter is None:
-        avro_json_converter = 'avrojson.AvroJsonConverter'
+        avro_json_converter = "avrojson.AvroJsonConverter"
 
-    if '(' not in avro_json_converter:
-        avro_json_converter += f'(use_logical_types={use_logical_types}, schema_types=__SCHEMA_TYPES)'
+    if "(" not in avro_json_converter:
+        avro_json_converter += (
+            f"(use_logical_types={use_logical_types}, schema_types=__SCHEMA_TYPES)"
+        )
 
     custom_imports = custom_imports or []
     names = schema.Names()
     make_avsc_object(json.loads(schema_json), names)
 
-    names = [k for k in six.iteritems(names.names) if isinstance(k[1], (schema.RecordSchema, schema.EnumSchema))]
+    names = [
+        k
+        for k in six.iteritems(names.names)
+        if isinstance(k[1], (schema.RecordSchema, schema.EnumSchema))
+    ]
     names = sorted(names, key=lambda x: x[0])
 
     main_out = StringIO()
@@ -56,17 +64,19 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
 
     for name, field_schema in names:  # type: str, schema.Schema
         name = clean_fullname(name)
-        namespace = tuple(name.split('.')[:-1])
+        namespace = tuple(name.split(".")[:-1])
         if namespace != current_namespace:
             current_namespace = namespace
         if isinstance(field_schema, schema.RecordSchema):
-            logger.debug(f'Writing schema: {clean_fullname(field_schema.fullname)}')
+            logger.debug(f"Writing schema: {clean_fullname(field_schema.fullname)}")
             write_schema_record(field_schema, writer, use_logical_types)
         elif isinstance(field_schema, schema.EnumSchema):
-            logger.debug(f'Writing enum: {field_schema.fullname}', field_schema.fullname)
+            logger.debug(
+                f"Writing enum: {field_schema.fullname}", field_schema.fullname
+            )
             write_enum(field_schema, writer)
     writer.set_tab(0)
-    writer.write('\n__SCHEMA_TYPES = {')
+    writer.write("\n__SCHEMA_TYPES = {")
     writer.tab()
 
     # Lookup table for fullname.
@@ -81,10 +91,10 @@ def generate_schema(schema_json, use_logical_types=False, custom_imports=None, a
         writer.write(f"\n'{n}': {n}Class,")
 
     writer.untab()
-    writer.write('\n}\n\n')
+    writer.write("\n}\n\n")
 
-    writer.write(f'_json_converter = {avro_json_converter}\n')
-    writer.write('avrojson.set_global_json_converter(_json_converter)\n\n')
+    writer.write(f"_json_converter = {avro_json_converter}\n")
+    writer.write("avrojson.set_global_json_converter(_json_converter)\n\n")
 
     value = main_out.getvalue()
     main_out.close()
@@ -99,13 +109,15 @@ def write_schema_preamble(writer):
     :return:
     """
     write_read_file(writer)
-    writer.write('\n\ndef __get_names_and_schema(json_str):')
+    writer.write("\n\ndef __get_names_and_schema(json_str):")
     with writer.indent():
-        writer.write('\nnames = avro_schema.Names()')
-        writer.write('\nschema = make_avsc_object(json.loads(json_str), names)')
-        writer.write('\nreturn names, schema')
-    writer.write('\n\n\n_SCHEMA_JSON_STR = __read_file(os.path.join(os.path.dirname(__file__), "schema.avsc"))')
-    writer.write('\n\n\n__NAMES, _SCHEMA = __get_names_and_schema(_SCHEMA_JSON_STR)')
+        writer.write("\nnames = avro_schema.Names()")
+        writer.write("\nschema = make_avsc_object(json.loads(json_str), names)")
+        writer.write("\nreturn names, schema")
+    writer.write(
+        '\n\n\n_SCHEMA_JSON_STR = __read_file(os.path.join(os.path.dirname(__file__), "schema.avsc"))'
+    )
+    writer.write("\n\n\n__NAMES, _SCHEMA = __get_names_and_schema(_SCHEMA_JSON_STR)")
 
 
 def write_populate_schemas(writer):
@@ -114,7 +126,9 @@ def write_populate_schemas(writer):
     :param writer:
     :return:
     """
-    writer.write('\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))\n')
+    writer.write(
+        '\n__SCHEMAS = dict((n.fullname.lstrip("."), n) for n in six.itervalues(__NAMES.names))\n'
+    )
 
 
 def write_namespace_modules(ns_dict, output_folder):
@@ -126,14 +140,17 @@ def write_namespace_modules(ns_dict, output_folder):
     :return:
     """
     for ns in six.iterkeys(ns_dict):
-        with open(os.path.join(output_folder, ns.replace('.', os.path.sep), "__init__.py"), "w+") as f:
-            currency = '.'
-            if ns != '':
-                currency += '.' * len(ns.split('.'))
+        with open(
+            os.path.join(output_folder, ns.replace(".", os.path.sep), "__init__.py"),
+            "w+",
+        ) as f:
+            currency = "."
+            if ns != "":
+                currency += "." * len(ns.split("."))
             for name in ns_dict[ns]:
-                f.write(f'from {currency}schema_classes import {name}Class\n')
+                f.write(f"from {currency}schema_classes import {name}Class\n")
 
-            f.write('\n\n')
+            f.write("\n\n")
 
             for name in ns_dict[ns]:
                 f.write(f"{name} = {name}Class\n")
@@ -148,20 +165,22 @@ def write_specific_reader(record_types, output_folder, use_logical_types):
     """
     with open(os.path.join(output_folder, "__init__.py"), "a+") as f:
         writer = TabbedWriter(f)
-        writer.write('from typing import cast')
-        writer.write('\nfrom avrogen.dict_wrapper import DictWrapper')
-        writer.write('\nfrom .schema_classes import _SCHEMA as get_schema_type')
-        writer.write('\nfrom .schema_classes import _json_converter as json_converter')
+        writer.write("from typing import cast")
+        writer.write("\nfrom avrogen.dict_wrapper import DictWrapper")
+        writer.write("\nfrom .schema_classes import _SCHEMA as get_schema_type")
+        writer.write("\nfrom .schema_classes import _json_converter as json_converter")
         for t in record_types:
             writer.write(f'\nfrom .schema_classes import {t.split(".")[-1]}Class')
-        writer.write('\nfrom avro.io import DatumReader')
+        writer.write("\nfrom avro.io import DatumReader")
         if use_logical_types:
-            writer.write('\nfrom avrogen import logical')
+            writer.write("\nfrom avrogen import logical")
 
         write_reader_impl(record_types, writer, use_logical_types)
 
 
-def write_schema_files(schema_json, output_folder, use_logical_types=False, custom_imports=None):
+def write_schema_files(
+    schema_json, output_folder, use_logical_types=False, custom_imports=None
+):
     """
     Generates concrete classes, namespace modules, and a SpecificRecordReader for a given avro schema
     :param str schema_json: JSON containing avro schema

@@ -12,23 +12,23 @@ class TabbedWriter(object):
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.writer.untab()
 
-    def __init__(self, inner_writer, tab_symbol='    '):
+    def __init__(self, inner_writer, tab_symbol="    "):
         self.__inner_writer = inner_writer
         self.__tabs = 0
         self.__tab_symbol = tab_symbol
-        self.__current_tab = ''
+        self.__current_tab = ""
 
     def write(self, text):
         assert isinstance(text, six.string_types)
 
         start_pos = 0
-        last_pos = text.find('\n')
+        last_pos = text.find("\n")
 
         while last_pos >= 0:
-            self.__inner_writer.write(text[start_pos:last_pos + 1])
+            self.__inner_writer.write(text[start_pos : last_pos + 1])
             self.__inner_writer.write(self.__current_tab)
             start_pos = last_pos + 1
-            last_pos = text.find('\n', start_pos)
+            last_pos = text.find("\n", start_pos)
 
         self.__inner_writer.write(text[start_pos:])
 
