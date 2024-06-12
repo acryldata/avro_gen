@@ -1,18 +1,19 @@
-from avrogen.core_writer import find_type_of_default
 import collections
+
 import six
+from avro import io, schema
+
+from avrogen.core_writer import find_type_of_default
 
 from . import logical
 from .dict_wrapper import DictWrapper
-from avro import schema
-from avro import io
 
 io_validate = io.validate
 
 try:
-    from avro.io import SchemaResolutionException, AvroTypeException
+    from avro.io import AvroTypeException, SchemaResolutionException
 except ImportError:
-    from avro.errors import SchemaResolutionException, AvroTypeException
+    from avro.errors import AvroTypeException, SchemaResolutionException
 
 _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
@@ -299,18 +300,21 @@ class AvroJsonConverter(object):
 
     def _union_to_json(self, data_obj, writers_schema, was_within_array=False):
         index_of_schema = -1
+
+        # Check for exact matches first.
         data_schema = self._get_record_schema_if_available(data_obj)
         for i, candidate_schema in enumerate(writers_schema.schemas):
-            # Check for exact matches first.
             if data_schema and candidate_schema.fullname == data_schema.fullname:
                 index_of_schema = i
                 break
 
+        if index_of_schema < 0:
             # Fallback to schema guessing based on validation.
-            if self.validate(candidate_schema, data_obj):
-                index_of_schema = i
-                if candidate_schema.type == "boolean":
-                    break
+            for i, candidate_schema in enumerate(writers_schema.schemas):
+                if self.validate(candidate_schema, data_obj):
+                    index_of_schema = i
+                    if candidate_schema.type == "boolean":
+                        break
         if index_of_schema < 0:
             raise AvroTypeException(writers_schema, data_obj)
         candidate_schema = writers_schema.schemas[index_of_schema]
