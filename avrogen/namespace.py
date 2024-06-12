@@ -1,13 +1,13 @@
 def make_fullname(ns, name):
-    return ((ns + '.') if ns else '') + name
+    return ((ns + ".") if ns else "") + name
 
 
 def split_fullname(fullname):
-    idx = fullname.rfind('.')
+    idx = fullname.rfind(".")
     if idx < 0:
-        return '', fullname
+        return "", fullname
 
-    return fullname[:idx], fullname[idx + 1:]
+    return fullname[:idx], fullname[idx + 1 :]
 
 
 def get_shortname(fullname):
