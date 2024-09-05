@@ -14,13 +14,16 @@ io_validate = io.validate
 try:
     from avro.errors import AvroException, AvroTypeException, SchemaResolutionException
 except ImportError:
-    from avro.io import AvroException, AvroTypeException, SchemaResolutionException
+    # Compat with Avro 1.10.2.
+    from avro.io import AvroTypeException, SchemaResolutionException
+    from avro.schema import AvroException
 
 try:
     import avro.constants
 
     _PRIMITIVE_TYPES = set(avro.constants.PRIMITIVE_TYPES)
 except ImportError:
+    # Compat with Avro < 1.12.0.
     _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
 
