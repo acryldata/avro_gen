@@ -1,5 +1,6 @@
 import collections
 
+import avro
 import six
 from avro import io, schema
 
@@ -11,11 +12,17 @@ from .dict_wrapper import DictWrapper
 io_validate = io.validate
 
 try:
-    from avro.io import AvroTypeException, SchemaResolutionException
+    from avro.errors import AvroException, AvroTypeException, SchemaResolutionException
 except ImportError:
-    from avro.errors import AvroTypeException, SchemaResolutionException
+    from avro.io import AvroException, AvroTypeException, SchemaResolutionException
 
-_PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
+try:
+    import avro.constants
+
+    _PRIMITIVE_TYPES = set(avro.constants.PRIMITIVE_TYPES)
+except AttributeError:
+    _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
+
 
 _json_converter = None
 _json_converter_tuples = None
@@ -125,9 +132,11 @@ class AvroJsonConverter(object):
                 return all(
                     self.validate(
                         f.type,
-                        datum.get(f.name, f.default)
-                        if f.has_default
-                        else datum.get(f.name),
+                        (
+                            datum.get(f.name, f.default)
+                            if f.has_default
+                            else datum.get(f.name)
+                        ),
                         skip_logical_types,
                     )
                     for f in expected_schema.fields
@@ -209,7 +218,7 @@ class AvroJsonConverter(object):
                 if lt.validate(writers_schema, data_obj):
                     data_obj = lt.convert(writers_schema, data_obj)
                 else:
-                    raise schema.AvroException(
+                    raise AvroException(
                         "Wrong object for %s logical type"
                         % writers_schema.props.get("logicalType")
                     )
@@ -229,7 +238,7 @@ class AvroJsonConverter(object):
         elif writers_schema.type in ["union", "error_union"]:
             result = self._union_to_json(data_obj, writers_schema, was_within_array)
         else:
-            raise schema.AvroException("Invalid schema type: %s" % writers_schema.type)
+            raise AvroException("Invalid schema type: %s" % writers_schema.type)
 
         return result
 
@@ -430,7 +439,9 @@ class AvroJsonConverter(object):
         for s in writers_schema.schemas:
             if self.validate(s, json_obj, skip_logical_types=True):
                 return self._generic_from_json(json_obj, s, readers_schema)
-        raise schema.AvroException("Datum union type not in schema: %s", value_type)
+        raise AvroTypeException(
+            f"Datum {json_obj} cannot be parsed as union schema {writers_schema}"
+        )
 
     def _make_type(self, tp, record):
         if issubclass(tp, DictWrapper):

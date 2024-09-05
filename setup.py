@@ -5,9 +5,10 @@ See:
 https://github.com/acryldata/avro_gen
 """
 
-from setuptools import setup, find_packages
 from codecs import open
 from os import path
+
+from setuptools import find_packages, setup
 
 here = path.abspath(path.dirname(__file__))
 
@@ -20,7 +21,7 @@ else:
 
 setup(
     name="avro-gen3",
-    version="0.7.13",
+    version="0.7.15",
     description="Avro record class and specific record reader generator",
     long_description=long_description,
     long_description_content_type="text/markdown",
