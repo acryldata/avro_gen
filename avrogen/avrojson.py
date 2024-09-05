@@ -1,6 +1,7 @@
 import collections
 
 import avro
+import avro.constants
 import six
 from avro import io, schema
 
@@ -19,10 +20,8 @@ except ImportError:
     from avro.schema import AvroException
 
 try:
-    import avro.constants
-
     _PRIMITIVE_TYPES = set(avro.constants.PRIMITIVE_TYPES)
-except ImportError:
+except AttributeError:
     # Compat with Avro < 1.12.0.
     _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
