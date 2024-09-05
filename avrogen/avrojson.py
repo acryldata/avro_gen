@@ -20,7 +20,7 @@ try:
     import avro.constants
 
     _PRIMITIVE_TYPES = set(avro.constants.PRIMITIVE_TYPES)
-except AttributeError:
+except ImportError:
     _PRIMITIVE_TYPES = set(schema.PRIMITIVE_TYPES)
 
 

@@ -21,7 +21,7 @@ else:
 
 setup(
     name="avro-gen3",
-    version="0.7.15",
+    version="0.7.16",
     description="Avro record class and specific record reader generator",
     long_description=long_description,
     long_description_content_type="text/markdown",
